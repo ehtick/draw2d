@@ -84,7 +84,8 @@ draw2d.command.CommandMoveVertices = draw2d.command.Command.extend(
    * Returns the figures affected by this command.
    *
    * @returns {draw2d.Figure[]} Array of affected figures
-   **/
+   * @since 6.7.0
+  **/
   getAffectedFigures: function () {
     return [this.line]
   }

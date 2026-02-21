@@ -99,7 +99,7 @@ draw2d.command.Command = Class.extend(
    *
    * @returns {draw2d.Figure[]} Array of affected figures. Returns empty array if no figures are affected.
    * @template
-   * @since 7.0.0
+   * @since 6.7.0
    **/
   getAffectedFigures: function () {
     return []
