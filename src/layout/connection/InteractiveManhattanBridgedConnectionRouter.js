@@ -188,6 +188,7 @@ draw2d.layout.connection.InteractiveManhattanBridgedConnectionRouter = draw2d.la
     //
     let ps = conn.getVertices()
     let p = ps.get(0)
+    let radius = conn.getRadius()
     let path = ["M", (p.x | 0) + 0.5, " ", (p.y | 0) + 0.5]
     let oldP = p
     let r = this.bridgeRadius
@@ -282,7 +283,17 @@ draw2d.layout.connection.InteractiveManhattanBridgedConnectionRouter = draw2d.la
           }
       })
 
-      path.push(" L", (p.x | 0) + 0.5, " ", (p.y | 0) + 0.5)
+      // Apply radius for rounded corners if set and not the last point
+      if (radius > 0 && i < ps.getSize() - 1) {
+        let inset = draw2d.geo.Util.insetPoint(p, oldP, radius)
+        path.push(" L", (inset.x | 0) + 0.5, ",", (inset.y | 0) + 0.5)
+        
+        let nextP = ps.get(i + 1)
+        let inset2 = draw2d.geo.Util.insetPoint(p, nextP, radius)
+        path.push(" Q", (p.x | 0) + 0.5, ",", (p.y | 0) + 0.5, " ", (inset2.x | 0) + 0.5, ",", (inset2.y | 0) + 0.5)
+      } else {
+        path.push(" L", (p.x | 0) + 0.5, " ", (p.y | 0) + 0.5)
+      }
       oldP = p
     }
     conn.svgPathString = path.join("")

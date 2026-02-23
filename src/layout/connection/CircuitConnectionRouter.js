@@ -214,10 +214,10 @@ draw2d.layout.connection.CircuitConnectionRouter = draw2d.layout.connection.Manh
    * @inheritdoc
    */
   route: function (conn, routingHints) {
-    let fromPt = conn.getStartPoint()
+    let fromPt = conn.getStartPosition()
     let fromDir = conn.getSource().getConnectionDirection(conn.getTarget())
 
-    let toPt = conn.getEndPoint()
+    let toPt = conn.getEndPosition()
     let toDir = conn.getTarget().getConnectionDirection(conn.getSource())
 
     // calculate the lines between the two points with the standard ManhattanRouter.
@@ -227,6 +227,12 @@ draw2d.layout.connection.CircuitConnectionRouter = draw2d.layout.connection.Manh
     // Ensure perfect orthogonal lines by normalizing internal vertices
     // This corrects any floating point errors from division operations in _route()
     this._normalizeVertices(conn)
+    
+    // if the start/end are too close, the router do not route anything at all - shortcut. But for the drawing routine
+    // and the later processing, we need at least two points - "start" and "end". we fix this here
+    if(conn.getVertices().getSize()<2){
+      conn.addPoint(fromPt)
+    }
 
     // Get the intersections to the other connections.
     // During drag operations, the intersection data is stale because
@@ -294,6 +300,7 @@ draw2d.layout.connection.CircuitConnectionRouter = draw2d.layout.connection.Manh
     //
     let ps = conn.getVertices()
     let p = ps.get(0)
+    let radius = conn.getRadius()
     let path = ["M", (p.x | 0) + 0.5, " ", (p.y | 0) + 0.5]
 
     let oldP = p
@@ -437,7 +444,17 @@ draw2d.layout.connection.CircuitConnectionRouter = draw2d.layout.connection.Manh
           }
       })
 
-      path.push(" L", (p.x | 0) + 0.5, " ", (p.y | 0) + 0.5)
+      // Apply radius for rounded corners if set and not the last point
+      if (radius > 0 && i < ps.getSize() - 1) {
+        let inset = draw2d.geo.Util.insetPoint(p, oldP, radius)
+        path.push(" L", (inset.x | 0) + 0.5, ",", (inset.y | 0) + 0.5)
+        
+        let nextP = ps.get(i + 1)
+        let inset2 = draw2d.geo.Util.insetPoint(p, nextP, radius)
+        path.push(" Q", (p.x | 0) + 0.5, ",", (p.y | 0) + 0.5, " ", (inset2.x | 0) + 0.5, ",", (inset2.y | 0) + 0.5)
+      } else {
+        path.push(" L", (p.x | 0) + 0.5, " ", (p.y | 0) + 0.5)
+      }
       oldP = p
     }
     conn.svgPathString = path.join("")

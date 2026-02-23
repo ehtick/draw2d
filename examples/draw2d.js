@@ -14789,9 +14789,9 @@ _packages.default.layout.connection.CircuitConnectionRouter = _packages.default.
    * @inheritdoc
    */
   route: function (conn, routingHints) {
-    let fromPt = conn.getStartPoint();
+    let fromPt = conn.getStartPosition();
     let fromDir = conn.getSource().getConnectionDirection(conn.getTarget());
-    let toPt = conn.getEndPoint();
+    let toPt = conn.getEndPosition();
     let toDir = conn.getTarget().getConnectionDirection(conn.getSource());
 
     // calculate the lines between the two points with the standard ManhattanRouter.
@@ -14801,6 +14801,12 @@ _packages.default.layout.connection.CircuitConnectionRouter = _packages.default.
     // Ensure perfect orthogonal lines by normalizing internal vertices
     // This corrects any floating point errors from division operations in _route()
     this._normalizeVertices(conn);
+
+    // if the start/end are too close, the router do not route anything at all - shortcut. But for the drawing routine
+    // and the later processing, we need at least two points - "start" and "end". we fix this here
+    if (conn.getVertices().getSize() < 2) {
+      conn.addPoint(fromPt);
+    }
 
     // Get the intersections to the other connections.
     // During drag operations, the intersection data is stale because
@@ -14864,6 +14870,7 @@ _packages.default.layout.connection.CircuitConnectionRouter = _packages.default.
     //
     let ps = conn.getVertices();
     let p = ps.get(0);
+    let radius = conn.getRadius();
     let path = ["M", (p.x | 0) + 0.5, " ", (p.y | 0) + 0.5];
     let oldP = p;
     let bridgeWidth = null;
@@ -14997,7 +15004,17 @@ _packages.default.layout.connection.CircuitConnectionRouter = _packages.default.
           }
         }
       });
-      path.push(" L", (p.x | 0) + 0.5, " ", (p.y | 0) + 0.5);
+
+      // Apply radius for rounded corners if set and not the last point
+      if (radius > 0 && i < ps.getSize() - 1) {
+        let inset = _packages.default.geo.Util.insetPoint(p, oldP, radius);
+        path.push(" L", (inset.x | 0) + 0.5, ",", (inset.y | 0) + 0.5);
+        let nextP = ps.get(i + 1);
+        let inset2 = _packages.default.geo.Util.insetPoint(p, nextP, radius);
+        path.push(" Q", (p.x | 0) + 0.5, ",", (p.y | 0) + 0.5, " ", (inset2.x | 0) + 0.5, ",", (inset2.y | 0) + 0.5);
+      } else {
+        path.push(" L", (p.x | 0) + 0.5, " ", (p.y | 0) + 0.5);
+      }
       oldP = p;
     }
     conn.svgPathString = path.join("");
@@ -15785,6 +15802,7 @@ _packages.default.layout.connection.InteractiveCircuitConnectionRouter = _packag
     // ATTENTION: we cast all x/y coordinates to integer and add 0.5 to avoid subpixel rendering
     let ps = conn.getVertices();
     let p = ps.get(0);
+    let radius = conn.getRadius();
     let path = ["M", (p.x | 0) + 0.5, " ", (p.y | 0) + 0.5];
     let oldP = p;
     let lastVertexNode = null;
@@ -15901,7 +15919,17 @@ _packages.default.layout.connection.InteractiveCircuitConnectionRouter = _packag
           }
         }
       });
-      path.push(" L", (p.x | 0) + 0.5, " ", (p.y | 0) + 0.5);
+
+      // Apply radius for rounded corners if set and not the last point
+      if (radius > 0 && i < ps.getSize() - 1) {
+        let inset = _packages.default.geo.Util.insetPoint(p, oldP, radius);
+        path.push(" L", (inset.x | 0) + 0.5, ",", (inset.y | 0) + 0.5);
+        let nextP = ps.get(i + 1);
+        let inset2 = _packages.default.geo.Util.insetPoint(p, nextP, radius);
+        path.push(" Q", (p.x | 0) + 0.5, ",", (p.y | 0) + 0.5, " ", (inset2.x | 0) + 0.5, ",", (inset2.y | 0) + 0.5);
+      } else {
+        path.push(" L", (p.x | 0) + 0.5, " ", (p.y | 0) + 0.5);
+      }
       oldP = p;
     }
     conn.svgPathString = path.join("");
@@ -16090,6 +16118,7 @@ _packages.default.layout.connection.InteractiveManhattanBridgedConnectionRouter 
     //
     let ps = conn.getVertices();
     let p = ps.get(0);
+    let radius = conn.getRadius();
     let path = ["M", (p.x | 0) + 0.5, " ", (p.y | 0) + 0.5];
     let oldP = p;
     let r = this.bridgeRadius;
@@ -16175,7 +16204,17 @@ _packages.default.layout.connection.InteractiveManhattanBridgedConnectionRouter 
           }
         }
       });
-      path.push(" L", (p.x | 0) + 0.5, " ", (p.y | 0) + 0.5);
+
+      // Apply radius for rounded corners if set and not the last point
+      if (radius > 0 && i < ps.getSize() - 1) {
+        let inset = _packages.default.geo.Util.insetPoint(p, oldP, radius);
+        path.push(" L", (inset.x | 0) + 0.5, ",", (inset.y | 0) + 0.5);
+        let nextP = ps.get(i + 1);
+        let inset2 = _packages.default.geo.Util.insetPoint(p, nextP, radius);
+        path.push(" Q", (p.x | 0) + 0.5, ",", (p.y | 0) + 0.5, " ", (inset2.x | 0) + 0.5, ",", (inset2.y | 0) + 0.5);
+      } else {
+        path.push(" L", (p.x | 0) + 0.5, " ", (p.y | 0) + 0.5);
+      }
       oldP = p;
     }
     conn.svgPathString = path.join("");
@@ -16897,6 +16936,7 @@ _packages.default.layout.connection.ManhattanBridgedConnectionRouter = _packages
     //
     let ps = conn.getVertices();
     let p = ps.get(0);
+    let radius = conn.getRadius();
     let path = ["M", (p.x | 0) + 0.5, " ", (p.y | 0) + 0.5];
     let oldP = p;
     let r = this.bridgeRadius;
@@ -16989,7 +17029,17 @@ _packages.default.layout.connection.ManhattanBridgedConnectionRouter = _packages
           }
         }
       });
-      path.push(" L", (p.x | 0) + 0.5, " ", (p.y | 0) + 0.5);
+
+      // Apply radius for rounded corners if set and not the last point
+      if (radius > 0 && i < ps.getSize() - 1) {
+        let inset = _packages.default.geo.Util.insetPoint(p, oldP, radius);
+        path.push(" L", (inset.x | 0) + 0.5, ",", (inset.y | 0) + 0.5);
+        let nextP = ps.get(i + 1);
+        let inset2 = _packages.default.geo.Util.insetPoint(p, nextP, radius);
+        path.push(" Q", (p.x | 0) + 0.5, ",", (p.y | 0) + 0.5, " ", (inset2.x | 0) + 0.5, ",", (inset2.y | 0) + 0.5);
+      } else {
+        path.push(" L", (p.x | 0) + 0.5, " ", (p.y | 0) + 0.5);
+      }
       oldP = p;
     }
     conn.svgPathString = path.join("");
@@ -42126,7 +42176,8 @@ _packages.default.shape.basic.Label = _packages.default.SetFigure.extend(/** @le
 
     // Font loading detection - to recalculate dimensions after fonts are loaded
     this._fontLoadingScheduled = false;
-    this._boundFontLoadHandler = null;
+    this._fontLoaded = false; // Set to true once fonts have been confirmed loaded
+
     this._super({
       stroke: 1,
       width: 1,
@@ -42314,6 +42365,8 @@ _packages.default.shape.basic.Label = _packages.default.SetFigure.extend(/** @le
   setBold: function (bold) {
     this.clearCache();
     this.bold = bold;
+    // Reset font loaded flag - bold changes font metrics
+    this._fontLoaded = false;
     this.repaint();
     this.fireEvent("change:bold", {
       value: this.bold
@@ -42506,13 +42559,12 @@ _packages.default.shape.basic.Label = _packages.default.SetFigure.extend(/** @le
       font = this.FONT_FALLBACK[font];
     }
     this.fontFamily = font;
+    // Reset font loaded flag - new font may need to be loaded
+    this._fontLoaded = false;
     this.repaint();
     this.fireEvent("change:fontFamily", {
       value: this.fontFamily
     });
-
-    // Schedule a deferred dimension check after fonts may have loaded
-    this._scheduleFontLoadCheck();
     return this;
   },
   /**
@@ -42529,50 +42581,51 @@ _packages.default.shape.basic.Label = _packages.default.SetFigure.extend(/** @le
       return;
     }
 
-    // Avoid scheduling multiple checks
+    // If font was already confirmed loaded, no need to check again
+    if (this._fontLoaded) {
+      return;
+    }
+
+    // Avoid scheduling multiple concurrent checks
     if (this._fontLoadingScheduled) {
       return;
     }
     this._fontLoadingScheduled = true;
 
     // Store reference to current dimensions for comparison
-    const initialWidth = this.cachedMinWidth;
-    const initialHeight = this.cachedMinHeight;
+    const oldWidth = this.cachedMinWidth;
+    const oldHeight = this.cachedMinHeight;
 
     // Use document.fonts.ready to wait for all fonts to be loaded
     document.fonts.ready.then(() => {
       this._fontLoadingScheduled = false;
+      this._fontLoaded = true; // Font is now confirmed loaded, no more checks needed
 
       // Only recalculate if we still have a canvas (figure wasn't removed)
       if (this.canvas === null || this.shape === null) {
         return;
       }
 
-      // Clear cache and get new dimensions
-      const oldWidth = this.cachedMinWidth;
-      const oldHeight = this.cachedMinHeight;
+      // Clear cache to force recalculation with new font metrics
       this.clearCache();
+
+      // Get fresh dimensions - getBBox() now returns correct values with loaded font
       const newWidth = this.getMinWidth();
       const newHeight = this.getMinHeight();
 
-      // Only trigger repaint if dimensions actually changed
-      // This avoids unnecessary repaints when font was already loaded
+      // Only trigger dimension change if dimensions actually changed
+      // This avoids unnecessary layout recalculations when font was already loaded
       if (oldWidth !== newWidth || oldHeight !== newHeight) {
         // Use requestAnimationFrame for smooth update
         requestAnimationFrame(() => {
           if (this.canvas === null || this.shape === null) {
             return;
           }
-          this.repaint();
-          this.fireEvent("resize");
 
-          // Update the resize handles and parent
-          this.editPolicy.each((i, e) => {
-            if (e instanceof _packages.default.policy.figure.DragDropEditPolicy) {
-              e.moved(this.canvas, this);
-            }
-          });
-          this.parent?.repaint();
+          // Set new dimension and fire resize event to notify parent containers
+          // The resize event is what Box/VBox listen to for triggering scheduleLayout()
+          this.setDimension(newWidth, newHeight);
+          this.fireEvent("resize");
         });
       }
     });
@@ -42646,7 +42699,12 @@ _packages.default.shape.basic.Label = _packages.default.SetFigure.extend(/** @le
     if (this.shape === null) {
       return 0;
     }
-    this.cachedMinWidth ??= this.svgNodes.getBBox(true).width + this.padding.left + this.padding.right + 2 * this.getStroke();
+    if (this.cachedMinWidth === null) {
+      this.cachedMinWidth = this.svgNodes.getBBox(true).width + this.padding.left + this.padding.right + 2 * this.getStroke();
+      // Schedule font load check whenever we calculate dimensions
+      // This ensures that if the font wasn't loaded yet, we'll recalculate later
+      this._scheduleFontLoadCheck();
+    }
     return this.cachedMinWidth;
   },
   /**
@@ -42659,7 +42717,12 @@ _packages.default.shape.basic.Label = _packages.default.SetFigure.extend(/** @le
     if (this.shape === null) {
       return 0;
     }
-    this.cachedMinHeight ??= this.svgNodes.getBBox(true).height + this.padding.top + this.padding.bottom + 2 * this.getStroke();
+    if (this.cachedMinHeight === null) {
+      this.cachedMinHeight = this.svgNodes.getBBox(true).height + this.padding.top + this.padding.bottom + 2 * this.getStroke();
+      // Schedule font load check whenever we calculate dimensions
+      // This ensures that if the font wasn't loaded yet, we'll recalculate later
+      this._scheduleFontLoadCheck();
+    }
     return this.cachedMinHeight;
   },
   /**
@@ -42678,6 +42741,8 @@ _packages.default.shape.basic.Label = _packages.default.SetFigure.extend(/** @le
       } else {
         this.cachedWidth = this.getMinWidth();
       }
+      // Schedule font load check whenever we calculate dimensions
+      this._scheduleFontLoadCheck();
     }
     return this.cachedWidth;
   },
@@ -42691,7 +42756,11 @@ _packages.default.shape.basic.Label = _packages.default.SetFigure.extend(/** @le
     if (this.shape === null) {
       return 0;
     }
-    this.cachedHeight ??= Math.max(this.height, this.getMinHeight());
+    if (this.cachedHeight === null) {
+      this.cachedHeight = Math.max(this.height, this.getMinHeight());
+      // Schedule font load check whenever we calculate dimensions
+      this._scheduleFontLoadCheck();
+    }
     return this.cachedHeight;
   },
   /**

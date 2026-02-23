@@ -69,6 +69,10 @@ draw2d.shape.basic.Label = draw2d.SetFigure.extend(
       // behavior of the shape
       //
       this.editor = null
+      
+      // Font loading detection - to recalculate dimensions after fonts are loaded
+      this._fontLoadingScheduled = false
+      this._fontLoaded = false  // Set to true once fonts have been confirmed loaded
 
       this._super(
         {stroke: 1, width: 1, height: 1, resizeable: false, ...attr},
@@ -274,6 +278,8 @@ draw2d.shape.basic.Label = draw2d.SetFigure.extend(
     setBold: function (bold) {
       this.clearCache()
       this.bold = bold
+      // Reset font loaded flag - bold changes font metrics
+      this._fontLoaded = false
       this.repaint()
 
       this.fireEvent("change:bold", {value: this.bold})
@@ -466,10 +472,77 @@ draw2d.shape.basic.Label = draw2d.SetFigure.extend(
       }
 
       this.fontFamily = font
+      // Reset font loaded flag - new font may need to be loaded
+      this._fontLoaded = false
       this.repaint()
       this.fireEvent("change:fontFamily", {value: this.fontFamily})
 
       return this
+    },
+    
+    /**
+     * Schedule a check to recalculate dimensions after fonts have loaded.
+     * This handles the case where external fonts are used that need to be
+     * downloaded first. The initial getBBox() call may return incorrect
+     * dimensions if the font isn't loaded yet.
+     * 
+     * @private
+     */
+    _scheduleFontLoadCheck: function () {
+      // Only proceed if document.fonts API is available and we have a fontFamily set
+      if (typeof document === 'undefined' || !document.fonts || !this.fontFamily) {
+        return
+      }
+      
+      // If font was already confirmed loaded, no need to check again
+      if (this._fontLoaded) {
+        return
+      }
+      
+      // Avoid scheduling multiple concurrent checks
+      if (this._fontLoadingScheduled) {
+        return
+      }
+      
+      this._fontLoadingScheduled = true
+      
+      // Store reference to current dimensions for comparison
+      const oldWidth = this.cachedMinWidth
+      const oldHeight = this.cachedMinHeight
+      
+      // Use document.fonts.ready to wait for all fonts to be loaded
+      document.fonts.ready.then(() => {
+        this._fontLoadingScheduled = false
+        this._fontLoaded = true  // Font is now confirmed loaded, no more checks needed
+        
+        // Only recalculate if we still have a canvas (figure wasn't removed)
+        if (this.canvas === null || this.shape === null) {
+          return
+        }
+        
+        // Clear cache to force recalculation with new font metrics
+        this.clearCache()
+        
+        // Get fresh dimensions - getBBox() now returns correct values with loaded font
+        const newWidth = this.getMinWidth()
+        const newHeight = this.getMinHeight()
+        
+        // Only trigger dimension change if dimensions actually changed
+        // This avoids unnecessary layout recalculations when font was already loaded
+        if (oldWidth !== newWidth || oldHeight !== newHeight) {
+          // Use requestAnimationFrame for smooth update
+          requestAnimationFrame(() => {
+            if (this.canvas === null || this.shape === null) {
+              return
+            }
+            
+            // Set new dimension and fire resize event to notify parent containers
+            // The resize event is what Box/VBox listen to for triggering scheduleLayout()
+            this.setDimension(newWidth, newHeight)
+            this.fireEvent("resize")
+          })
+        }
+      })
     },
 
 
@@ -551,7 +624,12 @@ draw2d.shape.basic.Label = draw2d.SetFigure.extend(
         return 0
       }
 
-      this.cachedMinWidth ??= (this.svgNodes.getBBox(true).width + this.padding.left+ this.padding.right + 2*this.getStroke())
+      if (this.cachedMinWidth === null) {
+        this.cachedMinWidth = this.svgNodes.getBBox(true).width + this.padding.left + this.padding.right + 2 * this.getStroke()
+        // Schedule font load check whenever we calculate dimensions
+        // This ensures that if the font wasn't loaded yet, we'll recalculate later
+        this._scheduleFontLoadCheck()
+      }
 
       return this.cachedMinWidth
     },
@@ -566,7 +644,13 @@ draw2d.shape.basic.Label = draw2d.SetFigure.extend(
       if (this.shape === null) {
         return 0
       }
-      this.cachedMinHeight ??= (this.svgNodes.getBBox(true).height+ this.padding.top+ this.padding.bottom+ 2*this.getStroke())
+      
+      if (this.cachedMinHeight === null) {
+        this.cachedMinHeight = this.svgNodes.getBBox(true).height + this.padding.top + this.padding.bottom + 2 * this.getStroke()
+        // Schedule font load check whenever we calculate dimensions
+        // This ensures that if the font wasn't loaded yet, we'll recalculate later
+        this._scheduleFontLoadCheck()
+      }
 
       return this.cachedMinHeight
     },
@@ -588,8 +672,9 @@ draw2d.shape.basic.Label = draw2d.SetFigure.extend(
         } else {
           this.cachedWidth = this.getMinWidth()
         }
+        // Schedule font load check whenever we calculate dimensions
+        this._scheduleFontLoadCheck()
       }
-
 
       return this.cachedWidth
     },
@@ -605,7 +690,11 @@ draw2d.shape.basic.Label = draw2d.SetFigure.extend(
         return 0
       }
 
-      this.cachedHeight ??= Math.max(this.height, this.getMinHeight())
+      if (this.cachedHeight === null) {
+        this.cachedHeight = Math.max(this.height, this.getMinHeight())
+        // Schedule font load check whenever we calculate dimensions
+        this._scheduleFontLoadCheck()
+      }
 
       return this.cachedHeight
     },
@@ -672,6 +761,10 @@ draw2d.shape.basic.Label = draw2d.SetFigure.extend(
       this.fireEvent("change:text", {value: this.text})
 
       this.parent?.repaint()
+      
+      // Schedule a deferred dimension check after fonts may have loaded
+      // This is important when text is set and a custom font is used
+      this._scheduleFontLoadCheck()
 
       return this
     },
