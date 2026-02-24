@@ -38323,6 +38323,17 @@ function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e
  *
  *      canvas.add(new draw2d.shape.basic.Label({text:"Click on the circle to see the selection feedback"}),20,10);
  *
+ * @example
+ *
+ *      // With custom color and stroke width
+ *      circle =new draw2d.shape.basic.Circle({diameter:50, x:90, y:50});
+ *      circle.installEditPolicy(new draw2d.policy.figure.AntSelectionFeedbackPolicy({
+ *          color: "#FF0000",
+ *          stroke: 2,
+ *          dasharray: "- ."
+ *      }));
+ *      canvas.add(circle);
+ *
  * @author Andreas Herz
  * @extends draw2d.policy.figure.SelectionFeedbackPolicy
  */
@@ -38330,10 +38341,89 @@ _packages.default.policy.figure.AntSelectionFeedbackPolicy = _packages.default.p
 {
   NAME: "draw2d.policy.figure.AntSelectionFeedbackPolicy",
   /**
-   * Creates a new Router object
+   * Creates a new selection feedback policy.
+   *
+   * @param {Object} [attr] the configuration or attributes for the policy
+   * @param {draw2d.util.Color|String} [attr.color=#2C70FF] the color of the selection rectangle
+   * @param {Number} [attr.stroke=1] the stroke width of the selection rectangle
+   * @param {String} [attr.dasharray="- "] the dasharray pattern for the selection rectangle (e.g., "- ", ".", "- .")
+   * @param {Object} [setter] custom setter methods to add
+   * @param {Object} [getter] custom getter methods to add
    */
   init: function (attr, setter, getter) {
-    this._super(attr, setter, getter);
+    this._super({
+      color: "#2C70FF",
+      stroke: 1,
+      dasharray: "- ",
+      ...attr
+    }, {
+      /** @attr {draw2d.util.Color|String} color the color of the selection frame */
+      color: this.setColor,
+      /** @attr {Number} stroke the stroke width of the selection frame */
+      stroke: this.setStroke,
+      /** @attr {String} dasharray the dasharray pattern of the selection frame */
+      dasharray: this.setDasharray,
+      ...setter
+    }, {
+      color: this.getColor,
+      stroke: this.getStroke,
+      dasharray: this.getDasharray,
+      ...getter
+    });
+  },
+  /**
+   * Set the color of the selection frame.
+   *
+   * @param {draw2d.util.Color|String} color the new color
+   * @returns {this}
+   */
+  setColor: function (color) {
+    this.color = color;
+    return this;
+  },
+  /**
+   * Get the color of the selection frame.
+   *
+   * @returns {String} the color
+   */
+  getColor: function () {
+    return this.color;
+  },
+  /**
+   * Set the stroke width of the selection frame.
+   *
+   * @param {Number} stroke the new stroke width
+   * @returns {this}
+   */
+  setStroke: function (stroke) {
+    this.stroke = stroke;
+    return this;
+  },
+  /**
+   * Get the stroke width of the selection frame.
+   *
+   * @returns {Number} the stroke width
+   */
+  getStroke: function () {
+    return this.stroke;
+  },
+  /**
+   * Set the dasharray pattern of the selection frame.
+   *
+   * @param {String} dasharray the new dasharray pattern (e.g., "- ", ".", "- .")
+   * @returns {this}
+   */
+  setDasharray: function (dasharray) {
+    this.dasharray = dasharray;
+    return this;
+  },
+  /**
+   * Get the dasharray pattern of the selection frame.
+   *
+   * @returns {String} the dasharray pattern
+   */
+  getDasharray: function () {
+    return this.dasharray;
   },
   /**
    *
@@ -38347,8 +38437,9 @@ _packages.default.policy.figure.AntSelectionFeedbackPolicy = _packages.default.p
     if (figure.selectionHandles.isEmpty()) {
       let box = new _packages.default.shape.basic.Rectangle({
         bgColor: null,
-        dasharray: "- ",
-        color: "#2C70FF"
+        dasharray: this.dasharray,
+        color: this.color,
+        stroke: this.stroke
       });
       box.hide = function () {
         // IMPORTANT
@@ -38375,8 +38466,9 @@ _packages.default.policy.figure.AntSelectionFeedbackPolicy = _packages.default.p
         let line = new _packages.default.shape.basic.Line({
           opacity: 0.5,
           bgColor: null,
-          dasharray: "- ",
-          color: "#2C70FF"
+          dasharray: this.dasharray,
+          color: this.color,
+          stroke: this.stroke
         });
         //line.setStartPosition(figure.getBoundingBox().getCenter());
         //line.setEndPosition(figure.getParent().getBoundingBox().getCenter());
